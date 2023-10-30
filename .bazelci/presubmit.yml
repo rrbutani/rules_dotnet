@@ -15,6 +15,10 @@ tasks:
       - "//..."
     test_targets:
       - "//..."
+    build_flags:
+      - "--noenable_bzlmod"
+    test_flags:
+      - "--noenable_bzlmod"
   ubuntu1804:
     name: Rules on Linux
     platform: ubuntu1804
