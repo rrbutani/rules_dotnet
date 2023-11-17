@@ -1,4 +1,3 @@
-[![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-908a85?logo=gitpod)](https://gitpod.io/#https://github.com/bazelbuild/rules_dotnet)
 [![Build status](https://badge.buildkite.com/703775290818dcb2af754f503ed54dc11bb124fce2a6bf1606.svg?branch=master)](https://buildkite.com/bazel/rules-dotnet-edge)
 
 # Bazel rules for .Net
