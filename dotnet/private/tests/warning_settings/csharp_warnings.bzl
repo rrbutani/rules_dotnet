@@ -7,28 +7,28 @@ load("//dotnet/private/tests:utils.bzl", "ACTION_ARGS_TEST_ARGS", "action_args_t
 csharp_treat_warnings_as_errors_config_wrapper_test = analysistest.make(
     action_args_test_impl,
     attrs = ACTION_ARGS_TEST_ARGS,
-    config_settings = {"@//dotnet/settings:csharp_treat_warnings_as_errors": True},
+    config_settings = {str(Label("//dotnet/settings:csharp_treat_warnings_as_errors")): True},
 )
 
 csharp_warnings_as_errors_config_wrapper_test = analysistest.make(
     action_args_test_impl,
     attrs = ACTION_ARGS_TEST_ARGS,
-    config_settings = {"@//dotnet/settings:csharp_warnings_as_errors": ["CS0025", "CS0026"]},
+    config_settings = {str(Label("//dotnet/settings:csharp_warnings_as_errors")): ["CS0025", "CS0026"]},
 )
 
 csharp_warnings_not_as_errors_config_wrapper_test = analysistest.make(
     action_args_test_impl,
     attrs = ACTION_ARGS_TEST_ARGS,
     config_settings = {
-        "@//dotnet/settings:csharp_treat_warnings_as_errors": True,
-        "@//dotnet/settings:csharp_warnings_not_as_errors": ["CS0025", "CS0026"],
+        str(Label("//dotnet/settings:csharp_treat_warnings_as_errors")): True,
+        str(Label("//dotnet/settings:csharp_warnings_not_as_errors")): ["CS0025", "CS0026"],
     },
 )
 
 csharp_warning_level_config_wrapper_test = analysistest.make(
     action_args_test_impl,
     attrs = ACTION_ARGS_TEST_ARGS,
-    config_settings = {"@//dotnet/settings:csharp_warning_level": 5},
+    config_settings = {str(Label("//dotnet/settings:csharp_warning_level")): 5},
 )
 
 # buildifier: disable=function-docstring
@@ -37,7 +37,7 @@ def csharp_warnings():
     csharp_library(
         name = "csharp",
         srcs = ["warnings.cs"],
-        targeting_packs = ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
+        targeting_packs = ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
         target_frameworks = ["net6.0"],
         tags = ["manual"],
     )
@@ -73,7 +73,7 @@ def csharp_warnings():
     csharp_library(
         name = "csharp_all_warnings",
         srcs = ["warnings.cs"],
-        targeting_packs = ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
+        targeting_packs = ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
         target_frameworks = ["net6.0"],
         treat_warnings_as_errors = True,
         tags = ["manual"],
@@ -89,7 +89,7 @@ def csharp_warnings():
     csharp_library(
         name = "csharp_warnings_as_errors",
         srcs = ["warnings.cs"],
-        targeting_packs = ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
+        targeting_packs = ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
         target_frameworks = ["net6.0"],
         warnings_as_errors = ["CS0025", "CS0026"],
         tags = ["manual"],
@@ -105,7 +105,7 @@ def csharp_warnings():
     csharp_library(
         name = "csharp_warnings_not_as_errors",
         srcs = ["warnings.cs"],
-        targeting_packs = ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
+        targeting_packs = ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
         target_frameworks = ["net6.0"],
         treat_warnings_as_errors = True,
         warnings_not_as_errors = ["CS0025", "CS0026"],
@@ -122,7 +122,7 @@ def csharp_warnings():
     csharp_library(
         name = "csharp_warning_level",
         srcs = ["warnings.cs"],
-        targeting_packs = ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
+        targeting_packs = ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref"],
         target_frameworks = ["net6.0"],
         warning_level = 5,
         tags = ["manual"],

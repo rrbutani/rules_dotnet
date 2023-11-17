@@ -1,7 +1,7 @@
 "NuGet Repo"
 
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
-load("@rules_dotnet//dotnet/private/rules/nuget:nuget_archive.bzl", "nuget_archive")
+load("//dotnet/private/rules/nuget:nuget_archive.bzl", "nuget_archive")
 
 _GLOBAL_NUGET_PREFIX = "nuget"
 
@@ -13,22 +13,15 @@ def _nuget_repo_impl(ctx):
         sha512 = package["sha512"]
         deps = package["dependencies"]
 
-        # deps = []
-        # for (tfm, tfm_deps) in dependencies.items():
-        #     for dep in tfm_deps:
-        #         if dep not in deps:
-        #             deps.append(dep)
-
         targeting_pack_overrides = ctx.attr.targeting_pack_overrides[name.lower()]
         framework_list = ctx.attr.framework_list[name.lower()]
-        template = Label("@rules_dotnet//dotnet/private/rules/nuget:template.BUILD")
 
-        ctx.template("{}/{}/BUILD.bazel".format(name.lower(), version), template, {
+        ctx.template("{}/{}/BUILD.bazel".format(name.lower(), version), ctx.attr._template, {
             "{PREFIX}": _GLOBAL_NUGET_PREFIX,
             "{NAME}": name,
             "{NAME_LOWER}": name.lower(),
             "{VERSION}": version,
-            "{DEPS}": ",".join(["\n    \"@rules_dotnet//dotnet:tfm_{tfm}\": [{deps_list}]".format(tfm = tfm, deps_list = ",".join(["\"@{nuget_repo_name}//{dep_name}\"".format(dep_name = d.lower(), nuget_repo_name = ctx.name.lower()) for d in tfm_deps])) for (tfm, tfm_deps) in deps.items()]),
+            "{DEPS}": ",".join(["\n    \"@rules_dotnet//dotnet:tfm_{tfm}\": [{deps_list}]".format(tfm = tfm, deps_list = ",".join(["\"@{nuget_repo_name}//{dep_name}\"".format(dep_name = d.lower(), nuget_repo_name = ctx.attr.repo_name.lower()) for d in tfm_deps])) for (tfm, tfm_deps) in deps.items()]),
             "{TARGETING_PACK_OVERRIDES}": json.encode({override.lower().split("|")[0]: override.lower().split("|")[1] for override in targeting_pack_overrides}),
             "{FRAMEWORK_LIST}": json.encode({override.lower().split("|")[0]: override.lower().split("|")[1] for override in framework_list}),
             "{SHA_512}": sha512,
@@ -43,6 +36,10 @@ alias(name = "content_files", actual = "@{prefix}.{name}.v{version}//:content_fi
 _nuget_repo = repository_rule(
     _nuget_repo_impl,
     attrs = {
+        "repo_name": attr.string(
+            mandatory = True,
+            doc = "The apparent name of the repo. This is needed because in bzlmod, the name attribute becomes the canonical name.",
+        ),
         "packages": attr.string_list(
             mandatory = True,
             allow_empty = False,
@@ -54,6 +51,9 @@ _nuget_repo = repository_rule(
         "framework_list": attr.string_list_dict(
             allow_empty = True,
             default = {},
+        ),
+        "_template": attr.label(
+            default = "//dotnet/private/rules/nuget:template.BUILD",
         ),
     },
 )
@@ -80,6 +80,7 @@ def nuget_repo(name, packages):
     # scaffold transitive @name// dependency tree
     _nuget_repo(
         name = name,
+        repo_name = name,
         packages = [json.encode(package) for package in packages],
         targeting_pack_overrides = {"{}".format(package["id"].lower()): package["targeting_pack_overrides"] for package in packages},
         framework_list = {"{}".format(package["id"].lower()): package["framework_list"] for package in packages},

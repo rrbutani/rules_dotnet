@@ -4,13 +4,13 @@
 
 load("@aspect_bazel_lib//lib:testing.bzl", "assert_contains")
 load(
-    "@rules_dotnet//dotnet:defs.bzl",
+    "//dotnet:defs.bzl",
     "csharp_binary",
     "csharp_library",
     "publish_binary",
 )
-load("@rules_dotnet//dotnet/private/tests/use_as_tool/run_rule:run_rule.bzl", "run_rule")
-load("@rules_dotnet//dotnet/private/tests/use_as_tool/run_shell_rule:run_shell_rule.bzl", "run_shell_rule")
+load("//dotnet/private/tests/use_as_tool/run_rule:run_rule.bzl", "run_rule")
+load("//dotnet/private/tests/use_as_tool/run_shell_rule:run_shell_rule.bzl", "run_shell_rule")
 
 # Test that normal binary targets work as tools
 csharp_binary(
@@ -18,7 +18,7 @@ csharp_binary(
     srcs = ["main.cs"],
     target_frameworks = ["net7.0"],
     targeting_packs = [
-        "@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref",
+        "@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref",
     ],
     deps = [
         ":lib",
@@ -30,7 +30,7 @@ csharp_library(
     srcs = ["lib.cs"],
     target_frameworks = ["net6.0"],
     targeting_packs = [
-        "@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref",
+        "@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref",
     ],
     deps = [],
 )
@@ -62,10 +62,10 @@ publish_binary(
     name = "publish_self_contained",
     binary = ":main",
     runtime_packs = select({
-        "@rules_dotnet//dotnet:rid_linux-x64": ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.runtime.linux-x64"],
-        "@rules_dotnet//dotnet:rid_osx-x64": ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.runtime.osx-x64"],
-        "@rules_dotnet//dotnet:rid_win-x64": ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.runtime.win-x64"],
-        "//conditions:default": ["@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.runtime.linux-x64"],
+        "//dotnet:rid_linux-x64": ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.runtime.linux-x64"],
+        "//dotnet:rid_osx-x64": ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.runtime.osx-x64"],
+        "//dotnet:rid_win-x64": ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.runtime.win-x64"],
+        "//conditions:default": ["@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.runtime.linux-x64"],
     }),
     self_contained = True,
     target_framework = "net7.0",
@@ -106,7 +106,7 @@ csharp_binary(
     ],
     target_frameworks = ["net6.0"],
     targeting_packs = [
-        "@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref",
+        "@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref",
     ],
     deps = [
         ":lib",

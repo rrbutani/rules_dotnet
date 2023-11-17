@@ -1,9 +1,9 @@
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load(
-    "@rules_dotnet//dotnet:defs.bzl",
+    "//dotnet:defs.bzl",
     "csharp_binary",
     "publish_binary",
 )
-load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 publish_binary(
     name = "framework_dependent",
@@ -21,7 +21,7 @@ csharp_binary(
     srcs = ["hello.cs"],
     target_frameworks = ["net6.0"],
     targeting_packs = [
-        "@rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref",
+        "@paket.rules_dotnet_dev_nuget_packages//microsoft.netcore.app.ref",
     ],
     deps = [
     ],
@@ -68,5 +68,5 @@ sh_test(
         "@platforms//os:linux": [],
         "@platforms//os:macos": [],
     }),
-    toolchains = ["@rules_dotnet//dotnet:resolved_toolchain"],
+    toolchains = ["//dotnet:resolved_toolchain"],
 )
