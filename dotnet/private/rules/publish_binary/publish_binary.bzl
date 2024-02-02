@@ -18,7 +18,10 @@ def _publish_binary_impl(ctx):
     elif len(ctx.attr.runtime_packs) > 0:
         fail("Can not do a framework dependent publish with a runtime pack")
 
-    repo_mapping_file = ctx.attr.binary[0][DefaultInfo].files_to_run.repo_mapping_manifest if ctx.attr.binary[0][DefaultInfo].files_to_run else None
+    # repo_mapping_manifest is only available in Bazel 7.0+
+    repo_mapping_file = None
+    if ctx.attr.binary[0][DefaultInfo].files_to_run and hasattr(ctx.attr.binary[0][DefaultInfo].files_to_run, "repo_mapping_manifest"):
+        repo_mapping_file = ctx.attr.binary[0][DefaultInfo].files_to_run.repo_mapping_manifest
 
     return [
         ctx.attr.binary[0][DotnetAssemblyCompileInfo],
