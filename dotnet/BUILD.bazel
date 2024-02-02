@@ -33,9 +33,11 @@ bzl_library(
     deps = [
         "//dotnet/private/rules/csharp:binary",
         "//dotnet/private/rules/csharp:library",
+        "//dotnet/private/rules/csharp:nunit_test",
         "//dotnet/private/rules/csharp:test",
         "//dotnet/private/rules/fsharp:binary",
         "//dotnet/private/rules/fsharp:library",
+        "//dotnet/private/rules/fsharp:nunit_test",
         "//dotnet/private/rules/fsharp:test",
         "//dotnet/private/rules/nuget:imports",
         "//dotnet/private/rules/nuget:nuget_archive",
@@ -83,6 +85,29 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [":repositories"],
 )
+
+bzl_library(
+    name = "paket.paket2bazel_dependencies_extension",
+    srcs = ["paket.paket2bazel_dependencies_extension.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [":paket.paket2bazel_dependencies"],
+)
+
+bzl_library(
+    name = "paket.rules_dotnet_dev_nuget_packages_extension",
+    srcs = ["paket.rules_dotnet_dev_nuget_packages_extension.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [":paket.rules_dotnet_dev_nuget_packages"],
+)
+
+bzl_library(
+    name = "paket.rules_dotnet_nuget_packages_extension",
+    srcs = ["paket.rules_dotnet_nuget_packages_extension.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [":paket.rules_dotnet_nuget_packages"],
+)
+
+exports_files(["defs.bzl"])
 
 bzl_library(
     name = "toolchain",
