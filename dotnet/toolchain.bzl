@@ -114,6 +114,16 @@ def _sibling_repository_layout_enabled(ctx):
         #   - the `dotnet_toolchain` invocation is the main repo
         #   - the `runtime`'s first file is *not* from the main repo
         #   - sibling layout is enabled
+        #
+        # TODO: if we define a target in this repo that we inspect the above
+        # changes to:
+        #   - **`rules_dotnet` is the main repo**
+        #   - in the `dotnet_toolchain`'s invocation, `runtime`'s first file is
+        #     not from the main repo
+        #   - sibling layout is enabled
+        #
+        # This is much more palatable; `rules_dotnet` will not be the main repo
+        # for any users of this ruleset.
         return False
 
 # Avoid using non-normalized paths (workspace/../other_workspace/path)
