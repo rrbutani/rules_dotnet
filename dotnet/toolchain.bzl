@@ -162,7 +162,7 @@ def _dotnet_toolchain_impl(ctx):
 
     if ctx.attr.runtime:
         runtime_files = ctx.attr.runtime.files.to_list() + ctx.attr.runtime.default_runfiles.files.to_list()
-        runtime_path = _to_manifest_path(ctx, runtime_files[0])
+        runtime_path = _to_manifest_path(ctx, runtime_files[0]) # TODO: try looking for a binary that matches the name?
 
     if ctx.attr.csharp_compiler:
         csharp_compiler_files = ctx.attr.csharp_compiler.files.to_list() + ctx.attr.csharp_compiler.default_runfiles.files.to_list()
