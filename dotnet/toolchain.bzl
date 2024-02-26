@@ -37,10 +37,93 @@ May be empty if the apphost_path points to a locally installed tool binary.""",
     },
 )
 
+def _is_repository_main(repository):
+    return repository == ""
+
+# TODO: add tests!
+
+# buildifier: disable=no-effect
+"""
+Remember:
+  - with [sibling layout]:
+    ```
+    execroot
+    ├── ext # some external repo
+    └── main_repo_name # main repo; also pwd for actions
+        └── bazel-out
+            └── ext
+                └── k8-fastbuild
+                    └── bin
+                    #   ^^^ is what `ctx.bin_dir` will be for targets in `@ext`:
+                    # `bazel-out/ext/k8-fastbuild/bin`
+    ```
+  - without:
+    ```
+    execroot
+    └── main_repo_name # main repo; also pwd for actions
+        ├── bazel-out
+        │   └── k8-fastbuild
+        │       └── bin # < is what `ctx.bin_dir` will be: `bazel-out/k8-fastbuild/bin`
+        │           └── external
+        │               └── ext
+        └── external
+            └── ext # some external repo
+    ```
+
+[sibling layout]: https://bazel.build/reference/command-line-reference#flag--experimental_sibling_repository_layout
+
+Also see:
+  - https://github.com/bazelbuild/bazel/issues/12821
+"""
+def _sibling_repository_layout_enabled(ctx):
+    # NOTE: we'd like to just use `is_sibling_repository_layout()` but it's a
+    # private API:
+    # return ctx.configuration.is_sibling_repository_layout()
+
+    # So instead, we can _infer_ whether sibling repository layout is enabled
+    # by looking at `ctx.bin_dir`.
+    #
+    # A quick recap of `bin_dir` values (as detailed above):
+    #  + rule invocation in main repo:
+    #    - not sibling layout: bazel-out/k8-fastbuild/bin
+    #    - sibling layout: bazel-out/k8-fastbuild/bin
+    #  + rule invocation in external repo:
+    #    - not sibling layout: bazel-out/k8-fastbuild/bin
+    #    - sibling layout: bazel-out/<external repo name>/k8-fastbuild/bin
+
+    repository = ctx.label.workspace_name
+    if not _is_repository_main(repository):
+        bin_path = ctx.bin_dir.path
+        # NOTE: we're betting that it's exceedingly unlikely that the
+        # configuration name (i.e. `k8-fastbuild`) is the same as the repository
+        # name. As a check we'll also assert on the number of path segments.
+        is_sibling_layout = bin_path.split("/")[1] == repository
+        if is_sibling_layout:
+            # Just to be extra sure...
+            if len(bin_path.split("/")) != 4: fail(
+                "does this bin path (in external repo) means sibling layout: ",
+                bin_path,
+            )
+        return is_sibling_layout
+    else:
+        # When the rule is invoked from the main repo, `bin_dir` tells us
+        # nothing.
+
+        # Assume not-sibling for now?
+        # TODO: this will break when:
+        #   - the `dotnet_toolchain` invocation is the main repo
+        #   - the `runtime`'s first file is *not* from the main repo
+        #   - sibling layout is enabled
+        return False
+
 # Avoid using non-normalized paths (workspace/../other_workspace/path)
 def _to_manifest_path(ctx, file):
+    # TODO: this is wrong for sibling layout?
     if file.short_path.startswith("../"):
-        return "external/" + file.short_path[3:]
+        if _sibling_repository_layout_enabled(ctx):
+            return file.short_path
+        else:
+            return "external/" + file.short_path[3:]
     else:
         return ctx.workspace_name + "/" + file.short_path
 
