@@ -53,7 +53,7 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         "{}/publish/{}/{}".format(ctx.label.name, runtime_identifier, binary_info.dll.basename),
     )
     outputs = [main_dll_copy]
-    script_body = ["@echo off"] if is_windows else ["#! /usr/bin/env bash", "set -eou pipefail"]
+    script_body = ["@echo off"] if is_windows else ["#! /usr/bin/env bash", "set -eou pipefail", "export PATH+=':/run/current-system/sw/bin/'"]
 
     _copy_file(script_body, binary_info.dll, main_dll_copy, is_windows = is_windows)
 

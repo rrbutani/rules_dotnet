@@ -744,7 +744,7 @@ def copy_files_to_dir(target_name, actions, is_windows, files, out_dir):
         A list of the copied files in the out_dir
     """
 
-    script_body = ["@echo off"] if is_windows else ["#! /usr/bin/env bash", "set -eou pipefail"]
+    script_body = ["@echo off"] if is_windows else ["#! /usr/bin/env bash", "set -eou pipefail", "export PATH+=':/run/current-system/sw/bin/'"]
 
     inputs = []
     outputs = []
