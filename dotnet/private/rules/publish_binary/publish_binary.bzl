@@ -181,6 +181,7 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         inputs = inputs,
         executable = copy_script,
         tools = [copy_script],
+        toolchain = None,
     )
 
     return (main_dll_copy, outputs, runfiles)
@@ -197,6 +198,7 @@ def _create_shim_exe(ctx, apphost_pack_info, dll, runtime_identifier):
         inputs = depset([apphost, dll], transitive = [ctx.attr._apphost_shimmer.default_runfiles.files]),
         tools = [ctx.attr._apphost_shimmer.files, ctx.attr._apphost_shimmer.default_runfiles.files],
         outputs = [output],
+        toolchain = None,
     )
 
     return output
