@@ -86,6 +86,8 @@ toolchain(
     # Base BUILD file for this repository
     repository_ctx.file("BUILD.bazel", build_content)
 
+    return repository_ctx.repo_metadata(reproducible = True)
+
 toolchains_repo = repository_rule(
     _toolchains_repo_impl,
     doc = """Creates a repository with toolchain definitions for all known platforms

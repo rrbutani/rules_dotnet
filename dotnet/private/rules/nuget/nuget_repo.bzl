@@ -90,6 +90,8 @@ alias(name = "files", actual = "@{prefix}.{id}.v{version}//:files")
 {tool_aliases}
 """.format(tool_aliases = "\n".join(tool_aliases)))
 
+    return ctx.repo_metadata(reproducible = True)
+
 _nuget_repo = repository_rule(
     _nuget_repo_impl,
     attrs = {

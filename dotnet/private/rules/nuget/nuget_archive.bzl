@@ -566,6 +566,8 @@ load("@rules_dotnet//dotnet/private/rules/nuget:nuget_archive.bzl", "tfm_filegro
         "exports_files([\"%s\"])" % nupkg_name,
     ]))
 
+    return ctx.repo_metadata(reproducible = True)
+
 nuget_archive = repository_rule(
     _nuget_archive_impl,
     attrs = {
