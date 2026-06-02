@@ -33,6 +33,10 @@ filegroup(
         "sdk/{sdk_version}/Roslyn/bincore/**/*",
         "host/**/*",
     ]),
+    # data = [
+    #     "sdk/{sdk_version}/Roslyn/bincore",
+    #     "host",
+    # ],
     visibility = ["//visibility:public"],
 )
 
@@ -48,6 +52,14 @@ filegroup(
         "shared/Microsoft.AspNetCore.App/**/*",
         "shared/Microsoft.NETCore.App/**/*",
     ]),
+    # data = [
+    #     "host",
+    #     "sdk",
+    #     "shared/Microsoft.AspNetCore.App",
+    #     "shared/Microsoft.NETCore.App",
+    #     # "packs/Microsoft.AspNetCore.App.Ref",
+    #     # "packs/Microsoft.NETCore.App.Ref",
+    # ],
     visibility = ["//visibility:public"],
 )
 
