@@ -456,17 +456,17 @@ def _compile(
 
     # outputs
     if out_dll != None:
-        args.add(out_dll.path, format = "/out:%s")
-        args.add(out_ref.path, format = "/refout:%s")
-        args.add(out_pdb.path, format = "/pdb:%s")
+        args.add(out_dll, format = "/out:%s")
+        args.add(out_ref, format = "/refout:%s")
+        args.add(out_pdb, format = "/pdb:%s")
         outputs = [out_dll, out_ref, out_pdb]
     else:
         args.add("/refonly")
-        args.add(out_ref.path, format = "/out:%s")
+        args.add(out_ref, format = "/out:%s")
         outputs = [out_ref]
 
     if out_xml != None:
-        args.add(out_xml.path, format = "/doc:%s")
+        args.add(out_xml, format = "/doc:%s")
         outputs.append(out_xml)
 
     # assembly references
@@ -490,7 +490,7 @@ def _compile(
 
     # keyfile
     if keyfile != None:
-        args.add(keyfile.path, format = "/keyfile:%s")
+        args.add(keyfile, format = "/keyfile:%s")
 
     # Additional compiler flags
     for option in compiler_options:
@@ -517,11 +517,15 @@ def _compile(
         outputs = outputs,
         executable = compiler_wrapper,
         arguments = [
-            toolchain.runtime.files_to_run.executable.path,
-            toolchain.csharp_compiler.files_to_run.executable.path,
+            (
+                actions.args()
+                    .add(toolchain.runtime.files_to_run.executable)
+                    .add(toolchain.csharp_compiler.files_to_run.executable)
+            ),
             args,
         ],
         env = {
+            # TODO(blocked-on-upstream): support `env: dict[str, Args]`?
             "DOTNET_CLI_HOME": toolchain.runtime.files_to_run.executable.dirname,
         },
     )

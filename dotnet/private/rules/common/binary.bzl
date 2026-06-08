@@ -119,17 +119,28 @@ def build_binary(ctx, compile_action):
         # Add additional lookup paths so that we can avoid copying all DLLs
         # into the output directory. The deps.json file will then contain
         # paths that are relative to the workspace root
-        runtimeconfig_struct["runtimeOptions"]["additionalProbingPaths"] = [
-            "./",
-            "./external",
-            "../",
-            "../external",
-            # This one is for when the binary target is used as an tool in e.g. a custom rule
-            "{}.runfiles".format(launcher.path),
-        ]
+        def _fmt_runtimeconfig(pair):
+            runtimeconfig_struct, launcher = pair
+            runtimeconfig_struct = json.decode(json.encode(runtimeconfig_struct)) # TODO: make a deep copy in a less inefficient way
+            runtimeconfig_struct["runtimeOptions"]["additionalProbingPaths"] = [
+                "./",
+                "./external",
+                "../",
+                "../external",
+                # This one is for when the binary target is used as an tool in e.g. a custom rule
+                "{}.runfiles".format(launcher.path),
+            ]
+            return json.encode_indent(runtimeconfig_struct).splitlines()
+        runtimeconfig_content = ctx.actions.args().set_param_file_format("multiline")
+        runtimeconfig_content.add_all(
+            [(runtimeconfig_struct, launcher)],
+            map_each = _fmt_runtimeconfig,
+            allow_closure = True,
+        )
         ctx.actions.write(
             output = runtimeconfig,
-            content = json.encode_indent(runtimeconfig_struct),
+            content = runtimeconfig_content,
+            mnemonic = "WriteRuntimeConfig",
         )
 
         depsjson = ctx.actions.declare_file("%s/%s/%s.deps.json" % (ctx.label.name, tfm, ctx.attr.out or ctx.attr.name))

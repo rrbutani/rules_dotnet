@@ -730,6 +730,28 @@ def to_rlocation_path(ctx, file):
     else:
         return ctx.workspace_name + "/" + file.short_path
 
+def mk_copy_file_cmd_unix(pair):
+    src, dst = pair
+    return [
+        "mkdir -p {dir} && cp -f {src} {dst}".format(
+            dir = shell.quote(dst.dirname),
+            src = shell.quote(src.path),
+            dst = shell.quote(dst.path),
+        )
+    ]
+
+def mk_copy_file_cmd_windows(pair):
+    src, dst = pair
+    return [
+        "if not exist \"{dir}\" @mkdir \"{dir}\" >NUL".format(
+            dir = dst.dirname.replace("/", "\\"),
+        ),
+        "@copy /Y \"{src}\" \"{dst}\" >NUL".format(
+            src = src.path.replace("/", "\\"),
+            dst = dst.path.replace("/", "\\"),
+        ),
+    ]
+
 def copy_files_to_dir(target_name, actions, is_windows, files, out_dir):
     """Copies files to a specific location.
 
@@ -744,7 +766,11 @@ def copy_files_to_dir(target_name, actions, is_windows, files, out_dir):
         A list of the copied files in the out_dir
     """
 
-    script_body = ["@echo off"] if is_windows else ["#! /usr/bin/env bash", "set -eou pipefail"]
+    # TODO: verify that `multiline` means `\r\n` on windows
+    script_body = actions.args().set_param_file_format("multiline")
+    script_body.add_all(
+        ["@echo off"] if is_windows else ["#! /usr/bin/env bash", "set -eou pipefail"]
+    )
 
     inputs = []
     outputs = []
@@ -752,24 +778,26 @@ def copy_files_to_dir(target_name, actions, is_windows, files, out_dir):
         dst = actions.declare_file("%s/%s" % (out_dir, src.basename))
         inputs.append(src)
         outputs.append(dst)
-        if is_windows:
-            script_body.append("if not exist \"{dir}\" @mkdir \"{dir}\" >NUL".format(dir = dst.dirname.replace("/", "\\")))
-            script_body.append("@copy /Y \"{src}\" \"{dst}\" >NUL".format(src = src.path.replace("/", "\\"), dst = dst.path.replace("/", "\\")))
-        else:
-            script_body.append("mkdir -p {dir} && cp -f {src} {dst}".format(dir = shell.quote(dst.dirname), src = shell.quote(src.path), dst = shell.quote(dst.path)))
+
+    script_body.add_all(
+        zip(inputs, outputs),
+        map_each = mk_copy_file_cmd_windows if is_windows else mk_copy_file_cmd_unix,
+    )
 
     if len(outputs) > 0:
         copy_script = actions.declare_file(target_name + ".copy.bat" if is_windows else target_name + ".copy.sh")
         actions.write(
             output = copy_script,
-            content = "\r\n".join(script_body) if is_windows else "\n".join(script_body),
+            content = script_body,
             is_executable = True,
+            mnemonic = "WriteCopyFilesToDirScript",
         )
         actions.run(
             outputs = outputs,
             inputs = inputs,
             executable = copy_script,
             tools = [copy_script],
+            mnemonic = "CopyFilesToDir",
         )
     return outputs
 
