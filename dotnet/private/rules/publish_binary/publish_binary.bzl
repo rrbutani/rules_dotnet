@@ -3,17 +3,9 @@ Rules for compiling F# binaries.
 """
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("@bazel_skylib//lib:shell.bzl", "shell")
-load("//dotnet/private:common.bzl", "generate_depsjson", "generate_runtimeconfig")
+load("//dotnet/private:common.bzl", "generate_depsjson", "generate_runtimeconfig", "mk_copy_file_cmd_unix", "mk_copy_file_cmd_windows")
 load("//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo", "DotnetBinaryInfo")
 load("//dotnet/private/transitions:tfm_transition.bzl", "tfm_transition")
-
-def _copy_file(script_body, src, dst, is_windows):
-    if is_windows:
-        script_body.append("if not exist \"{dir}\" @mkdir \"{dir}\" >NUL".format(dir = dst.dirname.replace("/", "\\")))
-        script_body.append("@copy /Y \"{src}\" \"{dst}\" >NUL".format(src = src.path.replace("/", "\\"), dst = dst.path.replace("/", "\\")))
-    else:
-        script_body.append("mkdir -p {dir} && cp -f {src} {dst}".format(dir = shell.quote(dst.dirname), src = shell.quote(src.path), dst = shell.quote(dst.path)))
 
 def _get_assembly_files(assembly_info, transitive_runtime_deps, deps_json_struct):
     libs = [] + assembly_info.libs
@@ -53,9 +45,11 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         "{}/publish/{}/{}".format(ctx.label.name, runtime_identifier, binary_info.dll.basename),
     )
     outputs = [main_dll_copy]
-    script_body = ["@echo off"] if is_windows else ["#! /usr/bin/env bash", "set -eou pipefail", "export PATH+=':/run/current-system/sw/bin/'"]
-
-    _copy_file(script_body, binary_info.dll, main_dll_copy, is_windows = is_windows)
+    # TODO(path mapping): Args w/lines
+    script_body = ctx.actions.args().set_param_file_format("multiline")
+    script_body.add_all(
+        ["@echo off"] if is_windows else ["#! /usr/bin/env bash", "set -eou pipefail", "export PATH+=':/run/current-system/sw/bin/'"]
+    )
 
     (libs, resource_assemblies, native, data, appsetting_files) = _get_assembly_files(assembly_info, transitive_runtime_deps, deps_json_struct)
 
@@ -66,7 +60,6 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         )
         outputs.append(output)
         inputs.append(file)
-        _copy_file(script_body, file, output, is_windows = is_windows)
 
     # Resource assemblies are copied next to the app host in the publish directory in a folder
     # that has the same name as the locale of the resource assembly.
@@ -77,7 +70,6 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         output = ctx.actions.declare_file(output_dir)
         outputs.append(output)
         inputs.append(file)
-        _copy_file(script_body, file, output, is_windows = is_windows)
 
     for file in native:
         # If the publish is not self-contained we need to copy the native
@@ -113,7 +105,6 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         )
         inputs.append(file)
         outputs.append(output)
-        _copy_file(script_body, file, output, is_windows = is_windows)
 
     # The data files put into the publish folder in a structure that works with
     # the runfiles lib. End users should not expect files in the `data` attribute
@@ -135,7 +126,6 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
             "{}/publish/{}/{}".format(ctx.label.name, runtime_identifier, file.basename),
         )
         outputs.append(output)
-        _copy_file(script_body, file, output, is_windows = is_windows)
 
     # In case the publish is self-contained there needs to be a runtime pack available
     # with the runtime dependencies that are required for the targeted runtime.
@@ -167,13 +157,18 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
                 output = ctx.actions.declare_file(file.basename, sibling = main_dll_copy)
                 outputs.append(output)
                 inputs.append(file)
-                _copy_file(script_body, file, output, is_windows = is_windows)
+
+    script_body.add_all(
+        zip(inputs, outputs),
+        map_each = mk_copy_file_cmd_windows if is_windows else mk_copy_file_cmd_unix,
+    )
 
     copy_script = ctx.actions.declare_file(ctx.label.name + ".copy.bat" if is_windows else ctx.label.name + ".copy.sh")
     ctx.actions.write(
         output = copy_script,
-        content = "\r\n".join(script_body) if is_windows else "\n".join(script_body),
+        content = script_body,
         is_executable = True,
+        mnemonic = "WriteCopyToPublishScript",
     )
 
     ctx.actions.run(
@@ -182,6 +177,7 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         executable = copy_script,
         tools = [copy_script],
         toolchain = None,
+        mnemonic = "CopyToPublish",
     )
 
     return (main_dll_copy, outputs, runfiles)
@@ -194,7 +190,9 @@ def _create_shim_exe(ctx, apphost_pack_info, dll, runtime_identifier):
 
     ctx.actions.run(
         executable = ctx.attr._apphost_shimmer.files_to_run,
-        arguments = [apphost.path, dll.path, output.path, runtime_identifier],
+        arguments = [ctx.actions.args().add_all(
+            [apphost.path, dll.path, output.path, runtime_identifier]
+        )],
         inputs = depset([apphost, dll], transitive = [ctx.attr._apphost_shimmer.default_runfiles.files]),
         tools = [ctx.attr._apphost_shimmer.files, ctx.attr._apphost_shimmer.default_runfiles.files],
         outputs = [output],
@@ -305,7 +303,7 @@ _publish_binary = rule(
         "self_contained": attr.bool(
             doc = """
             Whether the binary should be self-contained.
-            
+
             If true, the binary will be published as a self-contained but you need to provide
             a runtime pack in the `runtime_packs` attribute. At some point the rules might
             resolve the runtime pack automatically.
