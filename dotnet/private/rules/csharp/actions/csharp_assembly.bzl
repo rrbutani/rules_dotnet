@@ -502,7 +502,7 @@ def _compile(
 
     args.use_param_file("@%s", use_always = True)
 
-    direct_inputs = srcs + resources + additionalfiles + analyzer_configs + [toolchain.csharp_compiler.files_to_run.executable]
+    direct_inputs = srcs + resources + additionalfiles + analyzer_configs + [toolchain.csharp_compiler[DefaultInfo].files_to_run.executable]
     direct_inputs += [keyfile] if keyfile else []
 
     # dotnet.exe csc.dll /noconfig <other csc args>
@@ -511,21 +511,21 @@ def _compile(
         mnemonic = "CSharpCompile",
         progress_message = "Compiling " + target_name + (" (internals ref-only dll)" if out_dll == None else ""),
         inputs = depset(
-            direct = direct_inputs + framework_files + [compiler_wrapper, toolchain.runtime.files_to_run.executable],
-            transitive = [refs, analyzer_assemblies, analyzer_assemblies_csharp, toolchain.runtime.default_runfiles.files, toolchain.csharp_compiler.default_runfiles.files, compile_data],
+            direct = direct_inputs + framework_files + [compiler_wrapper, toolchain.runtime[DefaultInfo].files_to_run.executable],
+            transitive = [refs, analyzer_assemblies, analyzer_assemblies_csharp, toolchain.runtime[DefaultInfo].default_runfiles.files, toolchain.csharp_compiler[DefaultInfo].default_runfiles.files, compile_data],
         ),
         outputs = outputs,
         executable = compiler_wrapper,
         arguments = [
             (
                 actions.args()
-                    .add(toolchain.runtime.files_to_run.executable)
-                    .add(toolchain.csharp_compiler.files_to_run.executable)
+                    .add(toolchain.runtime[DefaultInfo].files_to_run.executable)
+                    .add(toolchain.csharp_compiler[DefaultInfo].files_to_run.executable)
             ),
             args,
         ],
         env = {
             # TODO(blocked-on-upstream): support `env: dict[str, Args]`?
-            "DOTNET_CLI_HOME": toolchain.runtime.files_to_run.executable.dirname,
+            "DOTNET_CLI_HOME": toolchain.runtime[DefaultInfo].files_to_run.executable.dirname,
         },
     )

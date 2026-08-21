@@ -62,15 +62,15 @@ def _dotnet_toolchain_impl(ctx):
     fsharp_compiler_path = ctx.attr.fsharp_compiler_path
 
     if ctx.attr.runtime:
-        runtime_files = ctx.attr.runtime.files.to_list() + ctx.attr.runtime.default_runfiles.files.to_list()
+        runtime_files = ctx.attr.runtime[DefaultInfo].files.to_list() + ctx.attr.runtime[DefaultInfo].default_runfiles.files.to_list()
         runtime_path = _to_manifest_path(ctx, runtime_files[0])
 
     if ctx.attr.csharp_compiler:
-        csharp_compiler_files = ctx.attr.csharp_compiler.files.to_list() + ctx.attr.csharp_compiler.default_runfiles.files.to_list()
+        csharp_compiler_files = ctx.attr.csharp_compiler[DefaultInfo].files.to_list() + ctx.attr.csharp_compiler[DefaultInfo].default_runfiles.files.to_list()
         csharp_compiler_path = _to_manifest_path(ctx, csharp_compiler_files[0])
 
     if ctx.attr.fsharp_compiler:
-        fsharp_compiler_files = ctx.attr.fsharp_compiler.files.to_list() + ctx.attr.fsharp_compiler.default_runfiles.files.to_list()
+        fsharp_compiler_files = ctx.attr.fsharp_compiler[DefaultInfo].files.to_list() + ctx.attr.fsharp_compiler[DefaultInfo].default_runfiles.files.to_list()
         fsharp_compiler_path = _to_manifest_path(ctx, fsharp_compiler_files[0])
 
     # Make the $(tool_BIN) variable available in places like genrules.

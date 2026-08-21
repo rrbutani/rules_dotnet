@@ -41,7 +41,7 @@ def _dotnet_tool_impl(ctx):
             template = ctx.file._launcher_bat,
             output = launcher,
             substitutions = {
-                "TEMPLATED_dotnet": to_rlocation_path(ctx, runtime.files_to_run.executable),
+                "TEMPLATED_dotnet": to_rlocation_path(ctx, runtime[DefaultInfo].files_to_run.executable),
                 "TEMPLATED_executable": executable,
             },
             is_executable = True,
@@ -51,7 +51,7 @@ def _dotnet_tool_impl(ctx):
             template = ctx.file._launcher_sh,
             output = launcher,
             substitutions = {
-                "TEMPLATED_dotnet": to_rlocation_path(ctx, runtime.files_to_run.executable),
+                "TEMPLATED_dotnet": to_rlocation_path(ctx, runtime[DefaultInfo].files_to_run.executable),
                 "TEMPLATED_executable": executable,
             },
             is_executable = True,
