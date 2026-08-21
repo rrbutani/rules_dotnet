@@ -434,7 +434,7 @@ def _compile(
 
     args.use_param_file("@%s", use_always = True)
 
-    direct_inputs = srcs + resources + [toolchain.fsharp_compiler.files_to_run.executable]
+    direct_inputs = srcs + resources + [toolchain.fsharp_compiler[DefaultInfo].files_to_run.executable]
     direct_inputs += [keyfile] if keyfile else []
 
     # dotnet.exe fsc.dll --noconfig <other fsc args>
@@ -442,21 +442,21 @@ def _compile(
         mnemonic = "FSharpCompile",
         progress_message = "Compiling " + target_name + (" (internals ref-only dll)" if out_dll == None else ""),
         inputs = depset(
-            direct = direct_inputs + framework_files + [compiler_wrapper, toolchain.runtime.files_to_run.executable],
-            transitive = [refs, toolchain.runtime.default_runfiles.files, toolchain.fsharp_compiler.default_runfiles.files, compile_data],
+            direct = direct_inputs + framework_files + [compiler_wrapper, toolchain.runtime[DefaultInfo].files_to_run.executable],
+            transitive = [refs, toolchain.runtime[DefaultInfo].default_runfiles.files, toolchain.fsharp_compiler[DefaultInfo].default_runfiles.files, compile_data],
         ),
         outputs = outputs,
         executable = compiler_wrapper,
         arguments = [
             (
                 actions.args()
-                    .add(toolchain.runtime.files_to_run.executable)
-                    .add(toolchain.fsharp_compiler.files_to_run.executable)
+                    .add(toolchain.runtime[DefaultInfo].files_to_run.executable)
+                    .add(toolchain.fsharp_compiler[DefaultInfo].files_to_run.executable)
             ),
             args,
         ],
         env = {
             # TODO(blocked-on-upstream): support `env: dict[str, Args]`?
-            "DOTNET_CLI_HOME": toolchain.runtime.files_to_run.executable.dirname,
+            "DOTNET_CLI_HOME": toolchain.runtime[DefaultInfo].files_to_run.executable.dirname,
         },
     )

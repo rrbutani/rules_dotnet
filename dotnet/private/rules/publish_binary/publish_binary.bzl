@@ -189,12 +189,12 @@ def _create_shim_exe(ctx, apphost_pack_info, dll, runtime_identifier):
     output = ctx.actions.declare_file(paths.replace_extension(dll.basename, ".exe" if ctx.target_platform_has_constraint(windows_constraint) else ""), sibling = dll)
 
     ctx.actions.run(
-        executable = ctx.attr._apphost_shimmer.files_to_run,
+        executable = ctx.attr._apphost_shimmer[DefaultInfo].files_to_run,
         arguments = [ctx.actions.args().add_all(
             [apphost.path, dll.path, output.path, runtime_identifier]
         )],
-        inputs = depset([apphost, dll], transitive = [ctx.attr._apphost_shimmer.default_runfiles.files]),
-        tools = [ctx.attr._apphost_shimmer.files, ctx.attr._apphost_shimmer.default_runfiles.files],
+        inputs = depset([apphost, dll], transitive = [ctx.attr._apphost_shimmer[DefaultInfo].default_runfiles.files]),
+        tools = [ctx.attr._apphost_shimmer[DefaultInfo].files, ctx.attr._apphost_shimmer[DefaultInfo].default_runfiles.files],
         outputs = [output],
         toolchain = None,
     )
