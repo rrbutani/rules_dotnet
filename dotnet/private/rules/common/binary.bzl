@@ -62,26 +62,17 @@ def _create_launcher(ctx, runfiles, rloc_artifacts, executable):
             is_executable = True,
         )
     else:
-        # TODO: undo this lazy expansion stuff; prob better to eagerly eval?
-        subs = ctx.actions.template_dict()
-        subs.add(
-            "TEMPLATED_dotnet",
-            to_rlocation_path(ctx, runtime[DefaultInfo].files_to_run.executable)
-        )
-        subs.add("TEMPLATED_executable", to_rlocation_path(ctx, executable))
-
-        rlocs = artifacts_to_necessary_rlocations_by_root(ctx, rloc_artifacts)
-        subs.add_joined(
-            "TEMPLATED_rlocations_for_deps_with_unique_roots",
-            depset(rlocs),
-            join_with = "\n",
-            map_each = repr,
-        )
-
         ctx.actions.expand_template(
             template = ctx.file._launcher_sh,
             output = launcher,
-            computed_substitutions = subs,
+            substitutions = {
+                "TEMPLATED_dotnet": to_rlocation_path(ctx, runtime[DefaultInfo].files_to_run.executable),
+                "TEMPLATED_executable": to_rlocation_path(ctx, executable),
+                "TEMPLATED_rlocations_for_deps_with_unique_roots": "\n".join([
+                    repr(rloc) for rloc in
+                    artifacts_to_necessary_rlocations_by_root(ctx, rloc_artifacts)
+                ]),
+            },
             is_executable = True,
         )
 

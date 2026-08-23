@@ -99,11 +99,11 @@ readonly RLOCATIONS_FOR_DEPS_WITH_UNIQUE_ROOTS=(
 TEMPLATED_rlocations_for_deps_with_unique_roots
 )
 
-declare -a additional_probing_paths_absolute=()
+declare -a additional_probing_paths=()
 if [[ -n "${RUNFILES_DIR}" ]]; then
   # note: `runfiles_export_envvars` sets this var; if there's no runfiles dir it
   # is empty
-  additional_probing_paths_absolute+=("${RUNFILES_DIR}")
+  additional_probing_paths+=("${RUNFILES_DIR}")
 else
   # we're in manifest-only mode! resolve absolute *root* paths for all the dep
   # rlocations we were given as having unique roots:
@@ -113,18 +113,13 @@ else
       echo >&2 "ERROR: resolved path for rlocation '$rloc' does not end with rlocation: '$resolved'"
       exit 1
     fi
-    additional_probing_paths_absolute+=("${resolved%"$rloc"}")
+    additional_probing_paths+=("${resolved%"$rloc"}")
   done
 fi
 
-# relativize all the additional probing paths, just in case they make it into
-# logs or action outputs:
 declare -a extra_flags=()
-_pwd="$(realpath "$(pwd)")"
-for path in "${additional_probing_paths_absolute[@]}"; do
-  extra_flags+=(
-    "--additionalprobingpath" "$(realpath --relative-to="$_pwd" "$path")"
-  )
+for path in "${additional_probing_paths[@]}"; do
+  extra_flags+=("--additionalprobingpath" "$path")
 done
 
 exec "$dotnet" exec "${extra_flags[@]}" "$(rlocation TEMPLATED_executable)" "$@"
