@@ -35,4 +35,11 @@ if defined args (
   set args=!args:"=\"!
 )
 
+: NOTE: not setting on the `CSharpCompile`/`FSharpCompile` actions because of
+: path mapping; we do not have a way to path-map env vars yet...
+:
+: TODO(path-mapping, blocked-on-upstream-bazel): want `env: dict[str, Args]`?
+:   - see: https://github.com/bazelbuild/bazel/pull/29875 (not quite enough)
+for %%F in ("%COMPILER%") do set DOTNET_CLI_HOME=%%~dpF
+
 "%DOTNET_EXECUTABLE%" %args% %PATHMAP%

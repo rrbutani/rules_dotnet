@@ -15,5 +15,12 @@ if [[ $(basename "$COMPILER") == "fsc.dll" ]]; then
 fi
 PATHMAP="$PATHMAP_FLAG:$PWD=."
 
+# NOTE: not setting on the `CSharpCompile`/`FSharpCompile` actions because of
+# path mapping; we do not have a way to path-map env vars yet...
+#
+# TODO(path-mapping, blocked-on-upstream-bazel): want `env: dict[str, Args]`?
+#   - see: https://github.com/bazelbuild/bazel/pull/29875 (not quite enough)
+export DOTNET_CLI_HOME="$(dirname "$1")"
+
 # shellcheck disable=SC2145
 ./"$@" "$PATHMAP"

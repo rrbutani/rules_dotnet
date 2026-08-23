@@ -524,8 +524,5 @@ def _compile(
             ),
             args,
         ],
-        env = {
-            # TODO(blocked-on-upstream): support `env: dict[str, Args]`?
-            "DOTNET_CLI_HOME": toolchain.runtime[DefaultInfo].files_to_run.executable.dirname,
-        },
+        execution_requirements = { "supports-path-mapping": "1" },
     )
