@@ -521,6 +521,43 @@ def _get_resource_assembly_locale(file):
     """
     return file.dirname.split("/")[-1]
 
+# TODO: don't use the word "root"? means something a bit different in Bazel
+#
+# we consider the following to be "roots" (i.e. prefixes such that `rlocationpath`s can
+# resolve):
+#   - `` (source files in the main repository)
+#   - `external` (source files in external repositories)
+#   - `bazel-out/<target platform name & hash>/bin/` (generated files in the main repo)
+#   - `bazel-out/<target platform name & hash>/bin/external/` (gen files in ext repos)
+#
+# bazel's definition of "root" only matches the following:
+#   - `bazel-out/<target platform name & hash>/bin/`
+#   - `` (empty string, i.e. `execroot/_main`)
+def artifacts_to_necessary_rlocations_by_root(ctx, artifacts):
+    # type: (list[File]) -> list[string]
+    """Takes a list of artifacts returns a list of rlocations.
+
+    See `launcher.sh.tpl` (which consumes this list of `rlocationpath`s) and
+    `generate_depsjson` (which embeds the `rlocationpath`s that need to resolve
+    via "additional probing paths" at runtime).
+
+    This function determines what the set of unique "roots" (i.e. paths needed
+    to be added to "additional probing paths") are such that `rlocationpath`s
+    for all the given artifacts can resolve.
+
+    One `rlocationpath` per root is yielded.
+    """
+    root_map = dict() # type: dict[string, string]
+    for artifact in artifacts:
+        rlocpath = to_rlocation_path(ctx, artifact)
+        if not artifact.path.endswith(rlocpath):
+            fail("{} should end with {}".format(artifact.path, rlocpath), artifact)
+        root = artifact.path.removesuffix(rlocpath)
+
+        if root not in root_map:
+            root_map[root] = rlocpath
+    return root_map.values()
+
 # For deps.json spec see: https://github.com/dotnet/sdk/blob/main/documentation/specs/runtime-configuration-file.md
 def generate_depsjson(
         ctx,
@@ -541,10 +578,18 @@ def generate_depsjson(
         runtime_pack_info: The DotnetRuntimePackInfo of the runtime pack that is used for a self contained publish.
         use_relative_paths: If the paths to the dependencies should be relative to the workspace root.
     Returns:
-        The deps.json file as a struct.
+        The deps.json file as a struct and a list of artifacts referenced by rlocationpath.
     """
     version = "{}/{}".format(tfm_to_semver(target_framework), runtime_pack_info.runtime_identifier) if is_self_contained else "{}".format(tfm_to_semver(target_framework))
     runtime_target = ".NETCoreApp,Version=v{}".format(version)
+
+    artifacts_referenced_by_rlocation_path = []
+    def _maybe_rlocation_path(file):
+        if not use_relative_paths:
+            return file.basename
+        artifacts_referenced_by_rlocation_path.append(file)
+        return to_rlocation_path(ctx, file)
+
 
     # DLLs that are overidden by the runtime pack due to the runtime pack having a higher version than the user provided dependency.
     runtime_pack_overrides = []
@@ -627,11 +672,11 @@ def generate_depsjson(
 
         # Do not add the `runtime` and `native` sections if the runtime pack overrides the dependency.
         if runtime_dep.name.lower() not in runtime_pack_overrides:
-            target_fragment["runtime"] = {(dll.basename if not use_relative_paths else to_rlocation_path(ctx, dll)): {
+            target_fragment["runtime"] = {_maybe_rlocation_path(dll): {
                 "assemblyVersion": runtime_dep.version + ".0",
             } for dll in runtime_dep.libs}
 
-            target_fragment["resources"] = {(resource_assembly.basename if not use_relative_paths else to_rlocation_path(ctx, resource_assembly)): {
+            target_fragment["resources"] = {_maybe_rlocation_path(resource_assembly): {
                 "locale": _get_resource_assembly_locale(resource_assembly),
             } for resource_assembly in runtime_dep.resource_assemblies}
 
@@ -643,7 +688,7 @@ def generate_depsjson(
             elif runtime_dep.nuget_info == None or runtime_dep.nuget_info.nupkg == None:
                 # For non self-contained binaries that are not from a NuGet package, assume we built
                 # them and point to their relative location within the execroot.
-                target_fragment["native"] = {(native_file.basename if not use_relative_paths else to_rlocation_path(ctx, native_file)): {"fileVersion": "0.0.0.0"} for native_file in runtime_dep.native}
+                target_fragment["native"] = {_maybe_rlocation_path(native_file): {"fileVersion": "0.0.0.0"} for native_file in runtime_dep.native}
             else:
                 target_fragment["runtimeTargets"] = {}
                 for native_file in runtime_dep.native:
@@ -657,7 +702,7 @@ def generate_depsjson(
         base["libraries"][library_name] = library_fragment
         base["targets"][runtime_target][library_name] = target_fragment
 
-    return base
+    return base, artifacts_referenced_by_rlocation_path
 
 # For runtimeconfig.json spec see https://github.com/dotnet/sdk/blob/main/documentation/specs/runtime-configuration-file.md
 def generate_runtimeconfig(target_framework, project_sdk, is_self_contained, roll_forward_behavior, runtime_pack_info = None):

@@ -53,6 +53,12 @@ def _dotnet_tool_impl(ctx):
             substitutions = {
                 "TEMPLATED_dotnet": to_rlocation_path(ctx, runtime[DefaultInfo].files_to_run.executable),
                 "TEMPLATED_executable": executable,
+                # TODO: TEMPLATED_rlocations_for_deps_with_unique_roots?
+                #   - there is no deps.json or runtimeconfig.json file... is
+                #     this just empty?
+                #   - is the assumption that all of a `dotnet_tool`'s deps are
+                #     source files?
+                "TEMPLATED_rlocations_for_deps_with_unique_roots": "",
             },
             is_executable = True,
         )
