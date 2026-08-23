@@ -836,6 +836,7 @@ def copy_files_to_dir(target_name, actions, is_windows, files, out_dir):
             content = script_body,
             is_executable = True,
             mnemonic = "WriteCopyFilesToDirScript",
+            execution_requirements = { "supports-path-mapping": "1" },
         )
         actions.run(
             outputs = outputs,
@@ -843,6 +844,7 @@ def copy_files_to_dir(target_name, actions, is_windows, files, out_dir):
             executable = copy_script,
             tools = [copy_script],
             mnemonic = "CopyFilesToDir",
+            execution_requirements = { "supports-path-mapping": "1" },
         )
     return outputs
 

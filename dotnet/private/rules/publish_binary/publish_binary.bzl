@@ -169,6 +169,7 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         content = script_body,
         is_executable = True,
         mnemonic = "WriteCopyToPublishScript",
+        execution_requirements = { "supports-path-mapping": "1" },
     )
 
     ctx.actions.run(
@@ -178,6 +179,7 @@ def _copy_to_publish(ctx, runtime_identifier, runtime_pack_info, binary_info, as
         tools = [copy_script],
         toolchain = None,
         mnemonic = "CopyToPublish",
+        execution_requirements = { "supports-path-mapping": "1" },
     )
 
     return (main_dll_copy, outputs, runfiles)
