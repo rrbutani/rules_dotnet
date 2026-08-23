@@ -216,7 +216,10 @@ def _generate_depsjson(
         assembly_info,
         transitive_runtime_deps,
         runtime_pack_info):
-    depsjson_struct = generate_depsjson(ctx, target_framework, is_self_contained, assembly_info, transitive_runtime_deps, runtime_pack_info)
+    # NOTE: not using rlocations in deps.json when publishing..
+    depsjson_struct, _rloc_artifacts = generate_depsjson(ctx, target_framework, is_self_contained, assembly_info, transitive_runtime_deps, runtime_pack_info)
+    if _rloc_artifacts != []:
+        fail("unreachable")
 
     ctx.actions.write(
         output = output,

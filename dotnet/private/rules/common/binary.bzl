@@ -13,6 +13,7 @@ load(
     "is_core_framework",
     "is_standard_framework",
     "to_rlocation_path",
+    "artifacts_to_necessary_rlocations_by_root",
 )
 load("//dotnet/private:providers.bzl", "DotnetApphostPackInfo", "DotnetAssemblyRuntimeInfo", "DotnetBinaryInfo", "DotnetRuntimePackInfo")
 
@@ -43,7 +44,8 @@ def _collect_native_dlls(assembly_runtime_info, deps):
 
     return result
 
-def _create_launcher(ctx, runfiles, executable):
+
+def _create_launcher(ctx, runfiles, rloc_artifacts, executable):
     runtime = get_toolchain(ctx).runtime
     windows_constraint = ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]
 
@@ -60,13 +62,26 @@ def _create_launcher(ctx, runfiles, executable):
             is_executable = True,
         )
     else:
+        # TODO: undo this lazy expansion stuff; prob better to eagerly eval?
+        subs = ctx.actions.template_dict()
+        subs.add(
+            "TEMPLATED_dotnet",
+            to_rlocation_path(ctx, runtime[DefaultInfo].files_to_run.executable)
+        )
+        subs.add("TEMPLATED_executable", to_rlocation_path(ctx, executable))
+
+        rlocs = artifacts_to_necessary_rlocations_by_root(ctx, rloc_artifacts)
+        subs.add_joined(
+            "TEMPLATED_rlocations_for_deps_with_unique_roots",
+            depset(rlocs),
+            join_with = "\n",
+            map_each = repr,
+        )
+
         ctx.actions.expand_template(
             template = ctx.file._launcher_sh,
             output = launcher,
-            substitutions = {
-                "TEMPLATED_dotnet": to_rlocation_path(ctx, runtime[DefaultInfo].files_to_run.executable),
-                "TEMPLATED_executable": to_rlocation_path(ctx, executable),
-            },
+            computed_substitutions = subs,
             is_executable = True,
         )
 
@@ -100,12 +115,11 @@ def build_binary(ctx, compile_action):
     # appsetting_files must be in runfiles (not just DefaultInfo) so they're present when the target runs from an isolated runfiles tree (RBE/sandbox).
     additional_runfiles = runtime_provider.appsetting_files.to_list()
 
-    launcher = _create_launcher(ctx, additional_runfiles, dll)
-
     runtimeconfig = None
     depsjson = None
     transitive_runtime_deps = runtime_provider.deps.to_list()
 
+    artifacts_referenced_by_rlocpath = []
     if is_core_framework(tfm):
         # Create the runtimeconfig.json for the binary
         runtimeconfig = ctx.actions.declare_file("%s/%s/%s.runtimeconfig.json" % (ctx.label.name, tfm, ctx.attr.out or ctx.attr.name))
@@ -118,22 +132,34 @@ def build_binary(ctx, compile_action):
 
         # Add additional lookup paths so that we can avoid copying all DLLs
         # into the output directory. The deps.json file will then contain
-        # paths that are relative to the workspace root
+        # paths that are relative to the runfiles directory
         def _fmt_runtimeconfig(pair):
-            runtimeconfig_struct, launcher = pair
+            runtimeconfig_struct = pair
             runtimeconfig_struct = json.decode(json.encode(runtimeconfig_struct)) # TODO: make a deep copy in a less inefficient way
             runtimeconfig_struct["runtimeOptions"]["additionalProbingPaths"] = [
                 "./",
                 "./external",
                 "../",
                 "../external",
-                # This one is for when the binary target is used as an tool in e.g. a custom rule
-                "{}.runfiles".format(launcher.path),
+
+                # NOTE: this is extended at runtime by the launcher script to
+                # include the directory/directories necessary to resolve the
+                # `rlocationpath`s in the deps.json file.
+
+                # note: leaving in for now since we have not updated
+                # `launcher.bat.tpl` (TODO):
+                #
+                # note: running binaries under path mapped actions will not work
+                # on windows
+                #
+                # actually... when runfiles are disabled (windows default) this
+                # path doesn't exist anyways?
+                # "{}.runfiles".format(launcher.path),
             ]
             return json.encode_indent(runtimeconfig_struct).splitlines()
         runtimeconfig_content = ctx.actions.args().set_param_file_format("multiline")
         runtimeconfig_content.add_all(
-            [(runtimeconfig_struct, launcher)],
+            [runtimeconfig_struct],
             map_each = _fmt_runtimeconfig,
             allow_closure = True,
         )
@@ -144,7 +170,7 @@ def build_binary(ctx, compile_action):
         )
 
         depsjson = ctx.actions.declare_file("%s/%s/%s.deps.json" % (ctx.label.name, tfm, ctx.attr.out or ctx.attr.name))
-        depsjson_struct = generate_depsjson(
+        depsjson_struct, artifacts_referenced_by_rlocpath = generate_depsjson(
             ctx,
             target_framework = tfm,
             is_self_contained = False,
@@ -163,6 +189,10 @@ def build_binary(ctx, compile_action):
 
     if depsjson != None:
         additional_runfiles.append(depsjson)
+
+    launcher = _create_launcher(
+        ctx, additional_runfiles, artifacts_referenced_by_rlocpath, dll
+    )
 
     runfiles = collect_transitive_runfiles(ctx, runtime_provider, ctx.attr.deps).merge(ctx.runfiles(files = additional_runfiles))
 
