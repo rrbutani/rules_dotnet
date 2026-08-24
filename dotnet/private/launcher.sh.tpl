@@ -104,11 +104,20 @@ if [[ -n "${RUNFILES_DIR}" ]]; then
   # note: `runfiles_export_envvars` sets this var; if there's no runfiles dir it
   # is empty
   additional_probing_paths+=("${RUNFILES_DIR}")
+  additional_probing_paths+=("${RUNFILES_DIR}/_main") # HACK: see `common.bzl:generate_depsjson`
 else
   # we're in manifest-only mode! resolve absolute *root* paths for all the dep
   # rlocations we were given as having unique roots:
   for rloc in "${RLOCATIONS_FOR_DEPS_WITH_UNIQUE_ROOTS[@]}"; do
     resolved="$(rlocation "$rloc")"
+    # HACK: see `common.bzl:generate_depsjson`
+    #
+    # `deps.json` drops `_main/` from `rlocationpath`s so that generated
+    # artifacts in the main repository are a real path fragment that matches
+    # what's in the execroot (and not just what's constructed in the runfiles
+    # tree). we do the same here, to match:
+    rloc="${rloc#_main/}"
+
     if ! [[ "$resolved" == *"$rloc" ]]; then
       echo >&2 "ERROR: resolved path for rlocation '$rloc' does not end with rlocation: '$resolved'"
       exit 1

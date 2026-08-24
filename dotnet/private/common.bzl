@@ -545,11 +545,13 @@ def artifacts_to_necessary_rlocations_by_root(ctx, artifacts):
     to be added to "additional probing paths") are such that `rlocationpath`s
     for all the given artifacts can resolve.
 
-    One `rlocationpath` per root is yielded.
+    One (adjusted*) `rlocationpath` per root is yielded.
+
+    *: see `generate_depsjson`; `_main/` is dropped from these `rlocationpath`s
     """
     root_map = dict() # type: dict[string, string]
     for artifact in artifacts:
-        rlocpath = to_rlocation_path(ctx, artifact)
+        rlocpath = to_rlocation_path(ctx, artifact).removeprefix("_main/")  # see `generate_depsjson`
         if not artifact.path.endswith(rlocpath):
             fail("{} should end with {}".format(artifact.path, rlocpath), artifact)
         root = artifact.path.removesuffix(rlocpath)
@@ -583,13 +585,69 @@ def generate_depsjson(
     version = "{}/{}".format(tfm_to_semver(target_framework), runtime_pack_info.runtime_identifier) if is_self_contained else "{}".format(tfm_to_semver(target_framework))
     runtime_target = ".NETCoreApp,Version=v{}".format(version)
 
-    artifacts_referenced_by_rlocation_path = []
+    artifacts_referenced_by_rlocation_path = {} # type: dict[string, File]
     def _maybe_rlocation_path(file):
         if not use_relative_paths:
             return file.basename
-        artifacts_referenced_by_rlocation_path.append(file)
-        return to_rlocation_path(ctx, file)
+        rloc = to_rlocation_path(ctx, file)
 
+        # HACK: also see `launcher.sh.tpl` and `artifacts_to_necessary_rlocations_by_root`
+        #
+        # `rlocation` paths for artifacts in the main repository start with: `_main`
+        #
+        # our strategy for making the relative paths emitted in the `deps.json`
+        # file (when there isn't a runfiles tree; i.e. "manifest only" mode) is
+        # to set additional probing paths such that the relative paths all
+        # resolve
+        #
+        # these main repository `_main`-prefixed `rlocationpath`s are
+        # incompatible with this strategy because, for generated artifacts,
+        # the path on disk does not contain a `_main` prefix. for example:
+        #   - source file example: `@@//foo:bar`
+        #     + rlocation path:   `_main/foo/bar`
+        #     + actual file path: `<execroot>/_main/foo/bar`
+        #   - generated file example: `@@//foo:bar_gen`
+        #     + rlocation path:   `_main/foo/bar_gen`
+        #     + actual file path: `<execroot>/_main/bazel-out/<target platform name & hash>/bin/foo/bar_gen`
+        #
+        # to resolve this we:
+        #   - strip the `_main` prefix from `rlocationpath`s here so that the
+        #     relative paths that land in `deps.json` do not have this prefix
+        #   - have `launcher.sh.tpl`, at runtime, also drop `_main` from
+        #     `rlocationpath`s (after having the runfiles library resolve them)
+        #     prior to stripping off a suffix when calculating additional
+        #     probing paths
+        #     + for the above example, this would result in:
+        #       * `_main/foo/bar` (rloc) -> `foo/bar` (in deps.json) -> `<execroot>/_main` (extra probing path)
+        #         - `<execroot>/_main` + `foo/bar` -> resolves correctly
+        #         - note that this (a source file in the main repo) resolved
+        #           fine without this change
+        #       * `_main/foo/bar_gen` (rloc) -> `foo/bar_gen` (in deps.json) -> `<execroot>/_main/bazel-out/<target platform name & hash>/bin` (extra probing path)
+        #         - `<execroot>/_main/bazel-out/<target platform name & hash>/bin` + `foo/bar_gen` -> resolves correctly
+        #
+        # this is an unsatisfying solution, most of all because it allows for
+        # collisions:
+        #   - an rlocation in the main repo like `_main/foobar/baz` would
+        #     collide with `foobar/baz` where `foobar` is a repo
+        #
+        # we have a check here to catch such collisions (but I am not convinced
+        # it is sufficient...)
+        #
+        # TODO: should we be using `ctx.workspace_name` instead of hardcoding
+        # `_main`? (see `to_rlocation_path`)
+        if rloc.startswith("_main/"):
+            if file.short_path.startswith("../"): # `../` -> signifies external repo
+                fail("expect `_main/` prefix only for external repo artifacts", file, file.short_path)
+            rloc = rloc.removeprefix("_main/")
+
+        if rloc in artifacts_referenced_by_rlocation_path:
+            prev = artifacts_referenced_by_rlocation_path[rloc]
+            if prev != file:
+                fail("rlocationpath collision: {} and {} both have (adjusted) rlocationpath {}".format(prev, file, rloc))
+        else:
+            artifacts_referenced_by_rlocation_path[rloc] = file
+
+        return rloc
 
     # DLLs that are overidden by the runtime pack due to the runtime pack having a higher version than the user provided dependency.
     runtime_pack_overrides = []
@@ -702,7 +760,7 @@ def generate_depsjson(
         base["libraries"][library_name] = library_fragment
         base["targets"][runtime_target][library_name] = target_fragment
 
-    return base, artifacts_referenced_by_rlocation_path
+    return base, artifacts_referenced_by_rlocation_path.values()
 
 # For runtimeconfig.json spec see https://github.com/dotnet/sdk/blob/main/documentation/specs/runtime-configuration-file.md
 def generate_runtimeconfig(target_framework, project_sdk, is_self_contained, roll_forward_behavior, runtime_pack_info = None):
