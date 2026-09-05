@@ -502,8 +502,11 @@ def _compile(
 
     args.use_param_file("@%s", use_always = True)
 
-    direct_inputs = srcs + resources + additionalfiles + analyzer_configs + [toolchain.csharp_compiler[DefaultInfo].files_to_run.executable]
+    direct_inputs = srcs + resources + additionalfiles + analyzer_configs
     direct_inputs += [keyfile] if keyfile else []
+
+    if not toolchain.compiler_executables_are_covered_by_source_directories_in_runfiles:
+        direct_inputs.append(toolchain.csharp_compiler[DefaultInfo].files_to_run.executable)
 
     # dotnet.exe csc.dll /noconfig <other csc args>
     # https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/command-line-building-with-csc-exe

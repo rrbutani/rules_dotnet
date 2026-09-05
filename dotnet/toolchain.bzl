@@ -114,6 +114,8 @@ def _dotnet_toolchain_impl(ctx):
         fsharp_compiler = ctx.attr.fsharp_compiler,
         host_model = ctx.attr.host_model,
         strict_deps = ctx.attr._strict_deps,
+        compiler_executables_are_covered_by_source_directories_in_runfiles =
+            ctx.attr.compiler_executables_are_covered_by_source_directories_in_runfiles,
     )
     return [
         default,
@@ -177,6 +179,10 @@ dotnet_toolchain = rule(
         "fsharp_default_version": attr.string(
             doc = "The default F# version used by the current dotnet SDK",
             mandatory = True,
+        ),
+        "compiler_executables_are_covered_by_source_directories_in_runfiles": attr.bool(
+            doc = "...; see $DOTNET_TOOLCHAIN_USE_SOURCE_DIRECTORIES",
+            mandatory = False,
         ),
         "_strict_deps": attr.label(
             doc = "Whether to use strict deps or not",

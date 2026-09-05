@@ -434,8 +434,11 @@ def _compile(
 
     args.use_param_file("@%s", use_always = True)
 
-    direct_inputs = srcs + resources + [toolchain.fsharp_compiler[DefaultInfo].files_to_run.executable]
+    direct_inputs = srcs + resources
     direct_inputs += [keyfile] if keyfile else []
+
+    if not toolchain.compiler_executables_are_covered_by_source_directories_in_runfiles:
+        direct_inputs.append(toolchain.fsharp_compiler[DefaultInfo].files_to_run.executable)
 
     # dotnet.exe fsc.dll --noconfig <other fsc args>
     actions.run(
